@@ -23,7 +23,7 @@ XColor col,exact;
 XEvent event,noev;
 
 const int Init_Num=30,Sight_Dist=96;
-const long Def_Energy=1600,Def_Sunlight_Intensity=6;
+const long Def_Energy=1600,Def_Sunlight_Intensity=6, Num_Survivor_Max = 100;
 int not,key;
 int map[WINDOW_X][WINDOW_Y];
 long Num_Survivor,Sunlight_Intensity;
@@ -58,7 +58,7 @@ int mover(struct AL *pt,int x,int y);
 int AI(struct AL *pt,struct AL **ppt);
 int Sensor(struct AL *pt,int *ptExist_Num,int *ptExist_Feed_Num);
 void god(struct AL *pt);
-struct AL *komachi(struct AL *del);
+struct AL *death(struct AL *del);
 
 
 int main(){
@@ -227,7 +227,7 @@ int main(){
 								for(k=0;k<WINDOW_Y;k++)
 									map[i][k]=0;
 							while(ALStartPoint.next){
-								komachi(ALStartPoint.next);
+								death(ALStartPoint.next);
 							}
 							goto All_Reset;
 						case XK_w: Switch.Write=!Switch.Write; break;
@@ -316,11 +316,11 @@ int AI(struct AL *pt,struct AL **ppt){
 	struct AL *target;
 
 	if(pt->kill){
-		*ppt=komachi(pt);
+		*ppt=death(pt);
 		return 1;
 	}else if(pt->Energy<1){
 		if(pt->type!=2 || rand()>RAND_MAX/2.0){
-			*ppt=komachi(pt);
+			*ppt=death(pt);
 		}else{
 			i=pt->type=0;
 			map[pt->x][pt->y]=0;
@@ -336,7 +336,7 @@ int AI(struct AL *pt,struct AL **ppt){
 					}
 				}
 			}
-			if(!i) *ppt=komachi(pt);
+			if(!i) *ppt=death(pt);
 			else pt->Energy=Def_Energy;
 		}
 		return 1;
@@ -356,7 +356,7 @@ int AI(struct AL *pt,struct AL **ppt){
 					}
 				}
 			}
-			if(i) komachi(pt->next);
+			if(i) death(pt->next);
 			else{
 				pt->next->type=0;
 				pt->next->Energy/=2;
@@ -632,6 +632,9 @@ int Sensor(struct AL *pt,int *ptExist_Num,int *ptExist_Feed_Num){
 void god(struct AL *pt){
 	int i,k;
 	struct AL *new,*bkup;
+	if (Num_Survivor > Num_Survivor_Max) {
+		return;
+	}
 	bkup=pt->next;
 	if(!(new=pt->next=(struct AL *)calloc(1,sizeof(struct AL)))){
 		fprintf(stderr,"*** MEMORY ALLOCATE ERROR ***");
@@ -656,7 +659,7 @@ void god(struct AL *pt){
 
 
 
-struct AL *komachi(struct AL *del){
+struct AL *death(struct AL *del){
 	int i,k,itmp1,itmp2;
 	struct AL *pri;
 	if(!del) return 0;
