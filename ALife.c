@@ -26,7 +26,7 @@ const int Init_Num=30,Sight_Dist=96;
 const long Def_Energy=1600,Def_Sunlight_Intensity=6, Num_Survivor_Max = 100;
 int not,key;
 int map[WINDOW_X][WINDOW_Y];
-long Num_Survivor,Sunlight_Intensity;
+long Num_Survivor, Sunlight_Intensity;
 double SinArr[360],CosArr[360],sum_sens[Sensor_Num],sum_task[Task_Num],sum_sens_predation[Sensor_Num],sum_task_predation[Task_Num];
 const double Pi=3.1415926535897932384626433832795028,Sqrt2=1.4142135623730950;
 char off[2][4]={{"off\0"},{"on\0"}},met[128];
@@ -267,7 +267,7 @@ int main(){
 			for(k=0;k<WINDOW_Y;k++)
 				if(map[i][k]==-1) XDrawPoint(d,pix,gc,i,k);
 		sprintf(met,"Survivor %ld   Sunlight_Intensity %ld   [w]rite %s",Num_Survivor,Sunlight_Intensity,off[Switch.Write]);
-		XDrawString(d,pix,gc,2,597,met,strlen(met));
+		XDrawString(d,pix,gc,2,10,met,strlen(met));
 		XCopyArea(d,pix,w,gc,0,0,WINDOW_X,WINDOW_Y,0,0);
 		waittime.tv_usec=20000;
 		select(0,0,0,0,&waittime);
@@ -315,34 +315,33 @@ int AI(struct AL *pt,struct AL **ppt){
 	double dtmp,dtmp2,bkup_sum_task,bkup_sum_sens[Sensor_Num];
 	struct AL *target;
 
-	if(pt->kill){
-		*ppt=death(pt);
+	if(pt->kill) {
+		*ppt = death(pt);
 		return 1;
-	}else if(pt->Energy<1){
-		if(pt->type!=2 || rand()>RAND_MAX/2.0){
-			*ppt=death(pt);
-		}else{
-			i=pt->type=0;
-			map[pt->x][pt->y]=0;
-			for(itmp=-1;itmp<2;itmp++){
-				for(itmp2=-1;itmp2<2;itmp2++){
-					itmp3=pt->x+itmp;
-					itmp4=pt->y+itmp2;
-					if(itmp3>=0 && itmp3<WINDOW_X && itmp4>=0 && itmp4<WINDOW_Y){
-						if(!map[itmp3][itmp4]){
-							i++;
-							map[itmp3][itmp4]=1;
-						}
+	} else if(pt->Energy < 1) { /* dead body produce new vegetable */
+		i = pt->type = 0;
+		map[pt->x][pt->y] = 0;
+		for (itmp = -1; itmp < 2; itmp++) {
+			for (itmp2 = -1; itmp2 < 2; itmp2++) {
+				itmp3 = pt->x + itmp;
+				itmp4 = pt->y + itmp2;
+				if (itmp3 >= 0 && itmp3 < WINDOW_X && itmp4 >= 0 && itmp4 < WINDOW_Y) {
+					if (!map[itmp3][itmp4]) {
+						i++;
+						map[itmp3][itmp4] = 1;
 					}
 				}
 			}
-			if(!i) *ppt=death(pt);
-			else pt->Energy=Def_Energy;
+		}
+		if (!i) {
+			*ppt = death(pt);
+		} else {
+			pt->Energy = Def_Energy;
 		}
 		return 1;
 	}else if(!pt->type){
-		if(pt->Energy<Def_Energy && rand()<RAND_MAX/64.0) pt->Energy+=Sunlight_Intensity;
-		if(rand()<RAND_MAX/640.0 && pt->Energy>Def_Energy*0.5){ /*Vegetable Propagation*/
+		if(pt->Energy < 5 * Def_Energy && rand() < RAND_MAX/64.0) pt->Energy+=Sunlight_Intensity;
+		if(rand() < RAND_MAX/640.0 && pt->Energy > Def_Energy*0.5){ /*Vegetable Propagation*/
 			god(pt);
 			pt->next->x=pt->x+(rand()>RAND_MAX/2.0?10:-10);
 			pt->next->y=pt->y+(rand()>RAND_MAX/2.0?10:-10);
@@ -370,7 +369,7 @@ int AI(struct AL *pt,struct AL **ppt){
 		return 0;
 	}
 
-	if(pt->Energy>pt->DNA[1]){ /*Propagation except Veget*/
+	if(pt->Energy > pt->DNA[1]){ /*Propagation except Veget*/
 		for(itmp=-1;itmp<2;itmp++){
 			for(itmp2=-1;itmp2<2;itmp2++){
 				itmp3=pt->x+itmp;
@@ -645,10 +644,14 @@ void god(struct AL *pt){
 	if(new->next) new->next->prior=new;
 	i=rand()/(RAND_MAX+1.0)*9.0;
 	new->type=i>3?i>6?2:1:0;
-	new->Energy=Def_Energy*(!new->type?0.5:1);
+	new->Energy=Def_Energy * (new->type > 0 ? new->type > 1 ? 2.0 : 1.0 : 0.5);
 	new->Angle=rand()/(RAND_MAX+1.0)*360.0;
 	new->DNA[0]=new->Energy*0.5*(rand()/(1.0+RAND_MAX)+1.0);
-	new->DNA[1]=new->Energy*0.5*(rand()/(1.0+RAND_MAX)+1.0);
+	if (new->type == 2) {
+		new->DNA[1]=new->Energy*0.5*(rand()/(1.0+RAND_MAX)+1.0);
+	} else {
+		new->DNA[1]=new->Energy*0.8*(rand()/(1.0+RAND_MAX)+1.0);
+	}
 	for(i=0;i<Task_Num;i++){
 		for(k=0;k<Sensor_Num;k++){
 			new->coefficient[i][k]=2.0;
@@ -672,9 +675,11 @@ struct AL *death(struct AL *del){
 					map[itmp1][itmp2]=0;
 			}
 		}
-	}else
-		if(del->x>=0 && del->x<WINDOW_X && del->y>=0 && del->y<WINDOW_Y)
+	} else {
+		if(del->x>=0 && del->x<WINDOW_X && del->y>=0 && del->y<WINDOW_Y) {
 			map[del->x][del->y]=0;
+		}
+	}
 	pri=del->prior;
 	pri->next=del->next;
 	if(del->next) del->next->prior=pri;
